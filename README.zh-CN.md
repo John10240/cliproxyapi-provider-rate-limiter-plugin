@@ -57,3 +57,13 @@ replace github.com/router-for-me/CLIProxyAPI/v7 => ../cliproxyapi-fork
 ## GitHub Actions
 
 仓库的 CI 会在 Linux 和 macOS 上执行 race 测试、静态检查和动态库构建。
+
+## 自定义 CPA 插件商店源
+
+仓库包含可直接作为第三方 CPA 插件商店源使用的 `registry.json`。在 CPA 配置的 `plugins.store-sources` 下添加：
+
+```yaml
+plugins:
+  store-sources:
+    - https://raw.githubusercontent.com/lsmallice/cliproxyapi-provider-rate-limiter-plugin/main/registry.json
+```

@@ -49,3 +49,13 @@ replace github.com/router-for-me/CLIProxyAPI/v7 => ../cliproxyapi-fork
 ## GitHub Actions
 
 The repository CI runs race tests, static checks, and dynamic-library builds on Linux and macOS.
+
+## Custom CPA plugin-store source
+
+This repository includes `registry.json` for use as a third-party CPA plugin-store source. Add the raw URL below to the CPA configuration under `plugins.store-sources`:
+
+```yaml
+plugins:
+  store-sources:
+    - https://raw.githubusercontent.com/lsmallice/cliproxyapi-provider-rate-limiter-plugin/main/registry.json
+```
