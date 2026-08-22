@@ -24,6 +24,8 @@ Limit precedence is `auths.<auth_id>` > `providers.<provider>` > `default_rpm`. 
 
 `auths` is the right setting when several Codex accounts share the `codex` provider and must have different limits. The plugin counts an admission when it returns an `AuthID`; this is request RPM, including failed upstream attempts.
 
+The `providers` value is applied independently to each candidate belonging to that provider; it is not an aggregate cap across all accounts. Invalid negative limits are rejected during plugin configuration. When all candidates are exhausted, CPA receives HTTP 429 with a retryable plugin error.
+
 ## Build
 
 ```bash

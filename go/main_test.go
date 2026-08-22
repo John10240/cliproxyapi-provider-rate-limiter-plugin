@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,4 +34,56 @@ func TestLimitPrecedence(t *testing.T) {
 	if got := limitFor(cfg, pluginapi.SchedulerAuthCandidate{ID: "c", Provider: "openai"}); got != 10 {
 		t.Fatalf("default=%d", got)
 	}
+}
+
+func TestConfigureRejectsNegativeLimits(t *testing.T) {
+	raw, err := json.Marshal(lifecycleRequest{ConfigYAML: []byte("default_rpm: -1\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := configure(raw); err == nil {
+		t.Fatal("negative default_rpm was accepted")
+	}
+}
+
+func TestConfigureNormalizesProviderKeysWithoutMutatingWhileRanging(t *testing.T) {
+	raw, err := json.Marshal(lifecycleRequest{ConfigYAML: []byte("providers:\n  Codex: 10\nauths:\n  account-1: 20\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := configure(raw); err != nil {
+		t.Fatal(err)
+	}
+	cfg := loaded()
+	if cfg.Providers["codex"] != 10 || len(cfg.Providers) != 1 {
+		t.Fatalf("providers = %#v", cfg.Providers)
+	}
+}
+
+func TestRateLimitErrorCarriesRetryableHTTPStatus(t *testing.T) {
+	if err := configure(mustJSON(lifecycleRequest{ConfigYAML: []byte("default_rpm: 1\n")})); err != nil {
+		t.Fatal(err)
+	}
+	request := mustJSON(pluginapi.SchedulerPickRequest{
+		Provider:   "codex",
+		Candidates: []pluginapi.SchedulerAuthCandidate{{ID: "limited-account", Provider: "codex"}},
+	})
+	if _, err := pick(request); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := pick(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"http_status":429`) || !strings.Contains(string(raw), `"retryable":true`) {
+		t.Fatalf("rate-limit response = %s", raw)
+	}
+}
+
+func mustJSON(v any) []byte {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return raw
 }

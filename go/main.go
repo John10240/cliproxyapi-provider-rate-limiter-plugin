@@ -18,14 +18,16 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
-	"gopkg.in/yaml.v3"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
+	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
+	"gopkg.in/yaml.v3"
 )
 
 type pluginConfig struct {
@@ -68,8 +70,10 @@ type envelope struct {
 	Error  *envelopeError  `json:"error,omitempty"`
 }
 type envelopeError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code       string `json:"code"`
+	Message    string `json:"message"`
+	HTTPStatus int    `json:"http_status,omitempty"`
+	Retryable  bool   `json:"retryable,omitempty"`
 }
 type lifecycleRequest struct {
 	ConfigYAML []byte `json:"config_yaml"`
@@ -155,14 +159,42 @@ func configure(raw []byte) error {
 			return err
 		}
 	}
-	for k, v := range cfg.Providers {
-		cfg.Providers[strings.ToLower(strings.TrimSpace(k))] = v
+	if cfg.DefaultRPM < 0 {
+		return fmt.Errorf("default_rpm must be >= 0")
 	}
-	for k, v := range cfg.Auths {
-		cfg.Auths[strings.TrimSpace(k)] = v
+	providers, err := normalizeLimits(cfg.Providers, true)
+	if err != nil {
+		return fmt.Errorf("providers: %w", err)
 	}
+	auths, err := normalizeLimits(cfg.Auths, false)
+	if err != nil {
+		return fmt.Errorf("auths: %w", err)
+	}
+	cfg.Providers = providers
+	cfg.Auths = auths
 	currentConfig.Store(cfg)
 	return nil
+}
+
+func normalizeLimits(input map[string]int, lowerKeys bool) (map[string]int, error) {
+	result := make(map[string]int, len(input))
+	for rawKey, limit := range input {
+		key := strings.TrimSpace(rawKey)
+		if lowerKeys {
+			key = strings.ToLower(key)
+		}
+		if key == "" {
+			return nil, fmt.Errorf("empty key")
+		}
+		if limit < 0 {
+			return nil, fmt.Errorf("%q has negative limit %d", key, limit)
+		}
+		if previous, exists := result[key]; exists && previous != limit {
+			return nil, fmt.Errorf("duplicate key %q with conflicting limits", key)
+		}
+		result[key] = limit
+	}
+	return result, nil
 }
 func loaded() pluginConfig {
 	if v := currentConfig.Load(); v != nil {
@@ -187,19 +219,19 @@ func pick(raw []byte) ([]byte, error) {
 	cfg := loaded()
 	now := time.Now()
 	for _, c := range req.Candidates {
-		key := c.ID
-		if key == "" {
-			key = c.Provider
+		if strings.TrimSpace(c.ID) == "" {
+			continue
 		}
+		key := c.ID
 		v, _ := windows.LoadOrStore(key, &window{})
 		if v.(*window).allow(now, limitFor(cfg, c)) {
 			return okEnvelope(pluginapi.SchedulerPickResponse{AuthID: c.ID, Handled: true})
 		}
 	}
-	return errorEnvelope("provider_rate_limit_exceeded", fmt.Sprintf("all candidates for provider %q are over the configured rate limit", req.Provider)), nil
+	return errorEnvelopeWithStatus("provider_rate_limit_exceeded", fmt.Sprintf("all candidates for provider %q are over the configured rate limit", req.Provider), http.StatusTooManyRequests), nil
 }
 func registrationData() registration {
-	return registration{SchemaVersion: pluginabi.SchemaVersion, Metadata: pluginapi.Metadata{Name: "provider-rate-limiter", Version: "0.1.0", Author: "community", ConfigFields: []pluginapi.ConfigField{{Name: "default_rpm", Type: pluginapi.ConfigFieldTypeInteger, Description: "Default RPM applied independently to every candidate."}, {Name: "providers", Type: pluginapi.ConfigFieldTypeObject, Description: "Provider name to RPM override map."}, {Name: "auths", Type: pluginapi.ConfigFieldTypeObject, Description: "AuthID to RPM override map; overrides provider and default."}}}, Capabilities: registrationCapability{Scheduler: true}}
+	return registration{SchemaVersion: pluginabi.SchemaVersion, Metadata: pluginapi.Metadata{Name: "provider-rate-limiter", Version: "0.2.0", Author: "lsmallice", GitHubRepository: "https://github.com/lsmallice/cliproxyapi-provider-rate-limiter-plugin", ConfigFields: []pluginapi.ConfigField{{Name: "default_rpm", Type: pluginapi.ConfigFieldTypeInteger, Description: "Default RPM applied independently to every candidate."}, {Name: "providers", Type: pluginapi.ConfigFieldTypeObject, Description: "Provider name to RPM override map."}, {Name: "auths", Type: pluginapi.ConfigFieldTypeObject, Description: "AuthID to RPM override map; overrides provider and default."}}}, Capabilities: registrationCapability{Scheduler: true}}
 }
 func okEnvelope(v any) ([]byte, error) {
 	b, e := json.Marshal(v)
@@ -209,7 +241,11 @@ func okEnvelope(v any) ([]byte, error) {
 	return json.Marshal(envelope{OK: true, Result: b})
 }
 func errorEnvelope(code, msg string) []byte {
-	b, _ := json.Marshal(envelope{OK: false, Error: &envelopeError{Code: code, Message: msg}})
+	return errorEnvelopeWithStatus(code, msg, 0)
+}
+
+func errorEnvelopeWithStatus(code, msg string, status int) []byte {
+	b, _ := json.Marshal(envelope{OK: false, Error: &envelopeError{Code: code, Message: msg, HTTPStatus: status, Retryable: status == http.StatusTooManyRequests}})
 	return b
 }
 func writeResponse(r *C.cliproxy_buffer, b []byte) {
