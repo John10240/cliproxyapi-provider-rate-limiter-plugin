@@ -94,6 +94,15 @@ func TestManagementRegistrationExposesMenuAndProtectedSettingsRoutes(t *testing.
 	}
 }
 
+func TestManagementMenuProvidesAccountSelectorUI(t *testing.T) {
+	html := menuHTML()
+	for _, want := range []string{"/v0/management/auth-files", "accountRows", "auth-limit", "providerFilter", "Save runtime settings"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("management menu missing %q", want)
+		}
+	}
+}
+
 func TestManagementSettingsCanUpdateRuntimeConfig(t *testing.T) {
 	body := testJSON(pluginConfig{DefaultRPM: 77, Providers: map[string]int{"Codex": 88}, Auths: map[string]int{"account-a": 99}})
 	raw, err := testJSONBytes(managementRequest{Method: "PUT", Path: "/v0/management/plugins/provider-rate-limiter/settings", Body: body})
