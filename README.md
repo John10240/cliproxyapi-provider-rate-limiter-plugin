@@ -28,6 +28,10 @@ Limit precedence is `auths.<auth_id>` > `providers.<provider>` > `default_rpm`. 
 
 The `providers` value is applied independently to each candidate belonging to that provider; it is not an aggregate cap across all accounts. Invalid negative limits are rejected during plugin configuration. When all candidates are exhausted, CPA receives HTTP 429 with a retryable plugin error.
 
+## Management menu
+
+The plugin registers a CPA management menu named **Provider Rate Limiter**. Open it from the CPA management panel to load and edit the default, provider, and per-auth limits. The page asks for the CPA management key and keeps it only in page memory. The menu's `PUT /v0/management/plugins/provider-rate-limiter/settings` update changes the running plugin immediately; persist the same values under `plugins.configs.provider-rate-limiter` in `config.yaml` before restarting CPA, because the official plugin ABI does not provide a host configuration-write callback.
+
 ## Build
 
 ```bash

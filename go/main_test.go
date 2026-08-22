@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
@@ -61,10 +62,10 @@ func TestConfigureNormalizesProviderKeysWithoutMutatingWhileRanging(t *testing.T
 }
 
 func TestRateLimitErrorCarriesRetryableHTTPStatus(t *testing.T) {
-	if err := configure(mustJSON(lifecycleRequest{ConfigYAML: []byte("default_rpm: 1\n")})); err != nil {
+	if err := configure(testJSON(lifecycleRequest{ConfigYAML: []byte("default_rpm: 1\n")})); err != nil {
 		t.Fatal(err)
 	}
-	request := mustJSON(pluginapi.SchedulerPickRequest{
+	request := testJSON(pluginapi.SchedulerPickRequest{
 		Provider:   "codex",
 		Candidates: []pluginapi.SchedulerAuthCandidate{{ID: "limited-account", Provider: "codex"}},
 	})
@@ -80,10 +81,46 @@ func TestRateLimitErrorCarriesRetryableHTTPStatus(t *testing.T) {
 	}
 }
 
-func mustJSON(v any) []byte {
-	raw, err := json.Marshal(v)
+func TestManagementRegistrationExposesMenuAndProtectedSettingsRoutes(t *testing.T) {
+	raw, err := handleMethod(pluginabi.MethodManagementRegister, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{"/menu", "Provider Rate Limiter", "GET", "PUT", "/settings"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("management registration missing %q: %s", want, text)
+		}
+	}
+}
+
+func TestManagementSettingsCanUpdateRuntimeConfig(t *testing.T) {
+	body := testJSON(pluginConfig{DefaultRPM: 77, Providers: map[string]int{"Codex": 88}, Auths: map[string]int{"account-a": 99}})
+	raw, err := testJSONBytes(managementRequest{Method: "PUT", Path: "/v0/management/plugins/provider-rate-limiter/settings", Body: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handleManagement(raw); err != nil {
+		t.Fatal(err)
+	}
+	got := loaded()
+	if got.DefaultRPM != 77 || got.Providers["codex"] != 88 || got.Auths["account-a"] != 99 {
+		t.Fatalf("runtime config = %#v", got)
+	}
+}
+
+func testJSON(v any) []byte {
+	raw, err := testJSONBytes(v)
 	if err != nil {
 		panic(err)
 	}
 	return raw
+}
+
+func testJSONBytes(v any) ([]byte, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return raw, nil
 }

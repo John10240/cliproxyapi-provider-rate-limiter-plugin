@@ -34,6 +34,10 @@ auths.<auth_id> > providers.<provider> > default_rpm
 
 `providers.<provider>` 是该 Provider 下每个候选账号分别使用的限制，不是所有账号合计的总限制。负数 RPM 配置会在插件配置阶段被拒绝。当所有候选都耗尽时，CPA 会收到 HTTP `429` 和可重试的插件错误。
 
+## 管理菜单
+
+插件会向 CPA 注册 **Provider Rate Limiter** 管理菜单。你可以从 CPA 管理面板打开它，读取和编辑全局默认值、Provider 限制以及单账号限制。页面会要求输入 CPA 管理密钥，并且只保存在当前页面内存中。菜单调用 `PUT /v0/management/plugins/provider-rate-limiter/settings` 后会立即更新运行中的插件；由于 CPA 官方插件 ABI 没有提供宿主配置写回接口，重启 CPA 前请把相同配置保存到 `config.yaml` 的 `plugins.configs.provider-rate-limiter` 下。
+
 ## 构建
 
 ```bash
