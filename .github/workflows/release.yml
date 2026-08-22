@@ -1,0 +1,73 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+            extension: so
+          - os: macos-14
+            goos: darwin
+            goarch: arm64
+            extension: dylib
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+      - name: Build plugin archive
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '1'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p ../dist/stage
+          go build -buildmode=c-shared -trimpath -ldflags='-s -w' \
+            -o "../dist/stage/provider-rate-limiter.${{ matrix.extension }}" .
+          cd ../dist/stage
+          zip -q "../provider-rate-limiter_${version}_${{ matrix.goos }}_${{ matrix.goarch }}.zip" \
+            "provider-rate-limiter.${{ matrix.extension }}"
+          cd ..
+          rm -rf stage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/provider-rate-limiter_*.zip
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum provider-rate-limiter_*.zip > checksums.txt
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/provider-rate-limiter_*.zip dist/checksums.txt \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
