@@ -168,7 +168,7 @@ func handleMethod(method string, raw []byte) ([]byte, error) {
 	case pluginabi.MethodManagementRegister:
 		return okEnvelope(managementRegistration{
 			Resources: []resourceRoute{{Path: "/menu", Menu: "Provider Rate Limiter", Description: "View and manage Provider/AuthID rate limits."}},
-			Routes:    []managementRoute{{Method: "GET", Path: "/settings"}, {Method: "PUT", Path: "/settings"}},
+			Routes:    []managementRoute{{Method: "GET", Path: "/plugins/provider-rate-limiter/settings"}, {Method: "PUT", Path: "/plugins/provider-rate-limiter/settings"}},
 		})
 	case pluginabi.MethodManagementHandle:
 		return handleManagement(raw)
@@ -329,7 +329,7 @@ func pick(raw []byte) ([]byte, error) {
 	return errorEnvelopeWithStatus("provider_rate_limit_exceeded", fmt.Sprintf("all candidates for provider %q are over the configured rate limit", req.Provider), http.StatusTooManyRequests), nil
 }
 func registrationData() registration {
-	return registration{SchemaVersion: pluginabi.SchemaVersion, Metadata: pluginapi.Metadata{Name: "provider-rate-limiter", Version: "0.4.0", Author: "lsmallice", GitHubRepository: "https://github.com/lsmallice/cliproxyapi-provider-rate-limiter-plugin", ConfigFields: []pluginapi.ConfigField{{Name: "default_rpm", Type: pluginapi.ConfigFieldTypeInteger, Description: "Default RPM applied independently to every candidate."}, {Name: "providers", Type: pluginapi.ConfigFieldTypeObject, Description: "Provider name to RPM override map."}, {Name: "auths", Type: pluginapi.ConfigFieldTypeObject, Description: "AuthID to RPM override map; overrides provider and default."}}}, Capabilities: registrationCapability{Scheduler: true, ManagementAPI: true}}
+	return registration{SchemaVersion: pluginabi.SchemaVersion, Metadata: pluginapi.Metadata{Name: "provider-rate-limiter", Version: "0.4.1", Author: "lsmallice", GitHubRepository: "https://github.com/lsmallice/cliproxyapi-provider-rate-limiter-plugin", ConfigFields: []pluginapi.ConfigField{{Name: "default_rpm", Type: pluginapi.ConfigFieldTypeInteger, Description: "Default RPM applied independently to every candidate."}, {Name: "providers", Type: pluginapi.ConfigFieldTypeObject, Description: "Provider name to RPM override map."}, {Name: "auths", Type: pluginapi.ConfigFieldTypeObject, Description: "AuthID to RPM override map; overrides provider and default."}}}, Capabilities: registrationCapability{Scheduler: true, ManagementAPI: true}}
 }
 func okEnvelope(v any) ([]byte, error) {
 	b, e := json.Marshal(v)

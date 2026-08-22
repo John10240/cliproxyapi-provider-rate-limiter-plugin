@@ -87,7 +87,7 @@ func TestManagementRegistrationExposesMenuAndProtectedSettingsRoutes(t *testing.
 		t.Fatal(err)
 	}
 	text := string(raw)
-	for _, want := range []string{"/menu", "Provider Rate Limiter", "GET", "PUT", "/settings"} {
+	for _, want := range []string{"/menu", "Provider Rate Limiter", "GET", "PUT", "/plugins/provider-rate-limiter/settings"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("management registration missing %q: %s", want, text)
 		}
