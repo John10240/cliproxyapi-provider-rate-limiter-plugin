@@ -36,7 +36,7 @@ auths.<auth_id> > providers.<provider> > default_rpm
 
 ## 管理菜单
 
-插件会向 CPA 注册 **Provider Rate Limiter** 管理菜单。请打开侧边栏菜单并输入 CPA 管理密钥，页面会从 `/v0/management/auth-files` 读取真实账号列表，按 AuthID 为每个账号提供独立的 RPM 输入框，同时提供按 Provider 设置默认限制的表格，不再需要手工填写 `auths` JSON。菜单调用 `PUT /v0/management/plugins/provider-rate-limiter/settings` 后会立即更新运行中的插件；由于 CPA 官方插件 ABI 没有提供宿主配置写回接口，重启 CPA 前请把相同配置保存到 `config.yaml` 的 `plugins.configs.provider-rate-limiter` 下。
+插件会向 CPA 注册 **Provider Rate Limiter** 管理菜单。请打开侧边栏菜单并输入 CPA 管理密钥，页面会从 `/v0/management/auth-files` 读取真实账号列表，按 AuthID 为每个账号提供独立的 RPM 输入框，同时提供按 Provider 设置默认限制的表格，不再需要手工填写 `auths` JSON。保存时会同时调用 CPA 的 `/v0/management/plugins/provider-rate-limiter/config` 配置接口和插件运行时设置接口，因此修改立即生效，重启 CPA 后也会保留。
 
 ## 构建
 

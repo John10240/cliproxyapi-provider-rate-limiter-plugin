@@ -30,7 +30,7 @@ The `providers` value is applied independently to each candidate belonging to th
 
 ## Management menu
 
-The plugin registers a CPA management menu named **Provider Rate Limiter**. Open the sidebar menu, enter the CPA management key, and load the real accounts from `/v0/management/auth-files`. The page shows one editable RPM field per AuthID and a separate Provider-default table, so account IDs do not need to be copied into JSON by hand. The menu's `PUT /v0/management/plugins/provider-rate-limiter/settings` update changes the running plugin immediately; persist the same values under `plugins.configs.provider-rate-limiter` in `config.yaml` before restarting CPA, because the official plugin ABI does not provide a host configuration-write callback.
+The plugin registers a CPA management menu named **Provider Rate Limiter**. Open the sidebar menu, enter the CPA management key, and load the real accounts from `/v0/management/auth-files`. The page shows one editable RPM field per AuthID and a separate Provider-default table, so account IDs do not need to be copied into JSON by hand. Saving uses CPA's `/v0/management/plugins/provider-rate-limiter/config` endpoint and the plugin's runtime settings endpoint, so the values take effect immediately and survive a CPA restart.
 
 ## Build
 

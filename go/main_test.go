@@ -96,7 +96,7 @@ func TestManagementRegistrationExposesMenuAndProtectedSettingsRoutes(t *testing.
 
 func TestManagementMenuProvidesAccountSelectorUI(t *testing.T) {
 	html := menuHTML()
-	for _, want := range []string{"/v0/management/auth-files", "accountRows", "auth-limit", "providerFilter", "Save runtime settings"} {
+	for _, want := range []string{"/v0/management/auth-files", "/v0/management/plugins/provider-rate-limiter/config", "accountRows", "auth-limit", "providerFilter", "Save runtime settings"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("management menu missing %q", want)
 		}
