@@ -1,5 +1,7 @@
 # CLIProxyAPI Provider Rate Limiter
 
+English | [简体中文](README.zh-CN.md)
+
 CLIProxyAPI dynamic plugin implementing the official `scheduler` capability. It limits each candidate independently before CPA selects an auth record; no `X-Provider` header, extra port, or path is required.
 
 ## Configuration
@@ -36,4 +38,14 @@ go build -buildmode=c-shared -o /tmp/provider-rate-limiter.so .
 
 Copy the `.so` into the CPA plugin directory for the target architecture, then restart or reload plugins according to the CPA deployment. This plugin is currently single-process and stores windows in memory; use a host-level single CPA instance or add shared storage before running multiple CPA replicas.
 
-For unreleased CPA SDK changes, add a temporary local `replace` in `go/go.mod`, then remove it before publishing.
+## Local CPA source development
+
+For unreleased CPA SDK changes, add a temporary local `replace` in `go/go.mod`, then remove it before publishing:
+
+```text
+replace github.com/router-for-me/CLIProxyAPI/v7 => ../cliproxyapi-fork
+```
+
+## GitHub Actions
+
+The repository CI runs race tests, static checks, and dynamic-library builds on Linux and macOS.
