@@ -3,6 +3,7 @@ name: test
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -21,3 +22,7 @@ jobs:
       - run: go test -race ./...
       - run: mkdir -p ../dist
       - run: go build -buildmode=c-shared -o ../dist/provider-rate-limiter-${{ matrix.os }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provider-rate-limiter-${{ matrix.os }}
+          path: dist/provider-rate-limiter-${{ matrix.os }}
